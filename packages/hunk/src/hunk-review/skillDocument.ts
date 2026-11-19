@@ -67,6 +67,8 @@ const WORKFLOW = [
   "9. hunk session comment apply ...                       # apply many agent notes in one stdin batch",
   "10. hunk session highlight add ...                      # light up the exact range you are explaining",
   "```",
+  "",
+  "For the two-way comment loop, start with `hunk comment list --json` instead: those commands are local, daemon-free, and work without a live TUI session.",
 ];
 
 const SESSION_SELECTION = [
@@ -166,6 +168,35 @@ const COMMENTS_SECTION = [
   "- `comment apply` reads a JSON batch from stdin and validates the full batch before mutating the live session",
   "- `comment list` and `comment clear` accept optional `--file`",
   "- Quote `--summary` and `--rationale` defensively in the shell",
+];
+
+/** Two-way loop: read the reviewer's comments, fix or dispute each, then verify. */
+const COMMENT_LIFECYCLE_SECTION = [
+  "### Two-way comment lifecycle",
+  "",
+  "The reviewer writes notes in the TUI with `c`; those notes are recorded as local comments with a stable id, file/line anchor, and status. Use the top-level `hunk comment *` commands to work through them. They read a JSON file beside the repository, need no live session, and never contact a network service.",
+  "",
+  ...bashFence([
+    "hunk comment list --json                         # open comments by default",
+    "hunk comment list --all --json                   # include resolved, disputed, outdated",
+    "hunk comment resolve c-... --note 'Renamed the helper' --json",
+    "hunk comment dispute c-... --text 'Intentional: the API requires this shape' --json",
+    "hunk comment reply c-... --text 'Will address after the refactor' --json",
+    "hunk comment reopen c-... --json",
+  ]),
+  "",
+  "Workflow:",
+  "",
+  "1. Run `hunk comment list --json` from the repository the reviewer is watching.",
+  "2. For each open comment, read `file`, `line`/`side`, `anchorText`, and `text`, then inspect and fix that code.",
+  "3. When you changed the code, call `hunk comment resolve <id> --note '...'` with a short explanation of what you did.",
+  "4. When you disagree and should not change the code, call `hunk comment dispute <id> --text '...'` with a reason. Do not edit code just to make a disputed comment go away.",
+  "5. Use `reply` only when the comment needs a conversation instead of a terminal state, and `reopen` when the reviewer asks for an already-resolved item to be revisited.",
+  "6. After the loop, re-run the repository's tests or build if one is present. Report which comments you resolved, which you disputed, and the verification result.",
+  "",
+  "The TUI polls that same file: resolved comments collapse out of the stream, disputed ones show a `[disputed]` badge, and open ones stay prominent. The reviewer can press `X` to resolve or reopen the active comment, `R` to reply, and `S` to reveal resolved comments.",
+  "",
+  "Never run `hunk diff`, `hunk show`, or any other interactive TUI command from an agent. Never edit the comment JSON file directly; use these commands so writes stay atomic and the thread stays consistent.",
 ];
 
 const HIGHLIGHTS_SECTION = [
@@ -272,6 +303,7 @@ export function renderHunkReviewSkill() {
     NAVIGATE_SECTION,
     RELOAD_SECTION,
     COMMENTS_SECTION,
+    COMMENT_LIFECYCLE_SECTION,
     HIGHLIGHTS_SECTION,
     BROWSER_SECTION,
     STML_SECTION,

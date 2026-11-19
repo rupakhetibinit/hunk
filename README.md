@@ -155,6 +155,72 @@ If your agent has no skill system, ask it to run `hunk skill show` and follow th
 
 See [Review with an agent](https://hunk.dev/docs/agents/review-with-an-agent/) for live sessions, `--agent-context`, and experimental rich notes.
 
+### Two-way review comments with Claude Code
+
+Hunk also supports a local comment lifecycle so a review can go back and forth between you and an agent. Everything stays on your machine: no hosted service, no API token, no network calls, and no dependency on your Git remote (Bitbucket, GitHub, or otherwise). The commands read your local `git diff` view and a JSON file outside the working tree.
+
+#### Setup
+
+1. Build and install this checkout with `bun install && bun run install:bin` (or run the source CLI as `bun run packages/hunk/src/main.tsx <command>`).
+2. Install the bundled review skill once: `npx skills add <this-checkout> -a claude-code --skill hunk-review`. The skill also teaches the two-way loop.
+3. Optionally copy the slash command from [`.claude/commands/review-comments.md`](.claude/commands/review-comments.md) into your project's `.claude/commands/` directory, so you can run `/review-comments`.
+4. Launch a review in one terminal: `hunk diff` (add `--watch` if you want Hunk to reload as files change).
+
+#### The loop
+
+1. **Leave a note.** Press `c` on a line or hunk in the TUI, type the comment, and save with `ctrl+s`. Hunk records it as an open comment with a stable id, the file/line anchor, the source line as `anchorText`, and you as the author.
+2. **Read the open comments** from another terminal in the same repo:
+   ```bash
+   hunk comment list --json            # open comments only
+   hunk comment list --all --json      # include resolved, disputed, outdated
+   ```
+3. **Ask Claude to address them** by invoking `/review-comments` or the `hunk-review` skill. It reads the open comments, inspects the anchored code, fixes each one, and then closes the loop:
+   ```bash
+   hunk comment resolve <id> --note "Renamed the helper and updated callers" --json
+   hunk comment dispute <id> --text "Intentional: the API requires this shape" --json
+   hunk comment reply <id> --text "Will handle after the refactor" --json
+   hunk comment reopen <id> --json
+   ```
+   Use `resolve` when code changed, `dispute` when the agent disagrees and leaves the code alone, `reply` for conversation, and `reopen` to revisit a resolved item. The agent should then re-run the project's tests or build.
+4. **Watch the viewer update.** The TUI polls the comment store, so within about a second resolved comments collapse out of the stream and disputed ones show a `[disputed]` badge. Open comments stay prominent.
+
+#### TUI keys
+
+| Key | Action                                       |
+| --- | -------------------------------------------- |
+| `c` | Add a review note (becomes an open comment)  |
+| `R` | Reply in the selected note's thread          |
+| `X` | Resolve or reopen the selected comment       |
+| `S` | Show or hide resolved comments               |
+| `a` | Show or hide agent notes (existing behavior) |
+
+#### Where comments are stored
+
+Comments live in `$XDG_STATE_HOME/hunk/comments/<repo-hash>.json` (on Windows, under `~/.local/state/hunk/comments/`), never in your working tree. Set `HUNK_COMMENTS_PATH` to use a different file. Writes are atomic. When a commented line moves, `hunk comment list` re-anchors it by its `anchorText`; if the text is gone, the comment is marked `outdated` rather than silently dropped. Deleted-line (`old` side) anchors keep their line number.
+
+#### Optional Stop hook
+
+Hunk does not install hooks for you. To have Claude Code nudge the agent about open comments at the end of a turn, add this to your project's `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run <this-checkout>/examples/claude/check-open-comments.ts"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The hook prints a blocking reason when open comments remain. Remove it any time; it does not change Hunk's behavior.
+
 ## Feature comparison
 
 | Capability                           | [hunk](https://github.com/modem-dev/hunk) | [lumen](https://github.com/jnsahaj/lumen) | [difftastic](https://github.com/Wilfred/difftastic) | [delta](https://github.com/dandavison/delta) | [diff-so-fancy](https://github.com/so-fancy/diff-so-fancy) | [diff](https://www.gnu.org/software/diffutils/) |

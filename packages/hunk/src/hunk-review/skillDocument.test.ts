@@ -28,6 +28,9 @@ const DOCUMENTED_AGENT_FLAGS = new Set([
 /** Flags of non-Hunk tools used in workflow examples (curl and the skills CLI). */
 const NON_HUNK_SHELL_FLAGS = new Set(["--data", "--skill"]);
 
+/** Flags of the top-level, daemon-free `hunk comment *` commands. */
+const COMMENT_CLI_FLAGS = new Set(["--json", "--all", "--status", "--note", "--text"]);
+
 /** Normalize checkout line endings so the comparison stays portable on Windows. */
 function normalizeNewlines(text: string) {
   return text.replaceAll("\r\n", "\n");
@@ -52,6 +55,7 @@ describe("hunk-review skill document", () => {
 
     expect(mentioned.length).toBeGreaterThan(0);
     for (const flag of mentioned) {
+      if (COMMENT_CLI_FLAGS.has(flag)) continue;
       expect(DOCUMENTED_AGENT_FLAGS).toContain(flag);
     }
   });
