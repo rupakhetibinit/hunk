@@ -8,7 +8,7 @@
  * with semantic operations.
  */
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { reviewContentDigest } from "../review/identity";
 import { resolveUserStateDir } from "../run/paths";
@@ -134,6 +134,7 @@ export function writeCommentDocument(
 }
 
 function writeAtomicJson(path: string, document: ReviewCommentDocument) {
+  mkdirSync(dirname(path), { recursive: true });
   const serialized = `${JSON.stringify(document, null, 2)}\n`;
   const tempPath = `${path}.${process.pid}.${Date.now()}.${randomUUID().slice(0, 8)}.tmp`;
   writeFileSync(tempPath, serialized, { encoding: "utf8", mode: 0o600 });

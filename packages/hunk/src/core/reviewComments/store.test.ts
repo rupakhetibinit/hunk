@@ -132,6 +132,13 @@ describe("comment lifecycle", () => {
     );
   });
 
+  test("creates missing parent directories on first write", () => {
+    const { context } = createContext();
+    const storePath = join(context.cwd!, "nested", "state", "comments.json");
+    createReviewComment({ file: "a.ts", side: "new", line: 1, text: "N" }, { storePath });
+    expect(readFileSync(storePath, "utf8")).toContain('"status": "open"');
+  });
+
   test("writes readable JSON to disk", () => {
     const { context, storePath } = createContext();
     createReviewComment({ file: "a.ts", side: "new", line: 2, text: "N" }, context);
