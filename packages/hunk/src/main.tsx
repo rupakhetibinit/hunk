@@ -124,6 +124,12 @@ async function main() {
     process.exit(0);
   }
 
+  if (startupPlan.kind === "comment-command") {
+    const { runCommentCommand } = await import("./app/comment/runCommentCommand");
+    writeStdout(await runCommentCommand(startupPlan.input));
+    process.exit(0);
+  }
+
   if (startupPlan.kind === "extension-manage") {
     const { runExtensionManageCommand } = await import("./extensions/manage/cli");
     process.exit(

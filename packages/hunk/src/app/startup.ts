@@ -69,6 +69,10 @@ export type StartupPlan =
       input: SessionCommandInput;
     }
   | {
+      kind: "comment-command";
+      input: import("../core/run/commandInputs").CommentCommandInput;
+    }
+  | {
       kind: "status-static" | "status-interactive";
       bootstrap: import("./statusBootstrap").StatusBootstrap;
     }
@@ -444,6 +448,13 @@ export async function prepareStartupPlan(
     return await finishHeadlessPlan({
       kind: "session-command",
       input: sessionInput,
+    });
+  }
+
+  if (parsedCliInput.kind === "comment") {
+    return await finishHeadlessPlan({
+      kind: "comment-command",
+      input: parsedCliInput,
     });
   }
 

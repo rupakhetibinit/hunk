@@ -1,6 +1,7 @@
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { Command, Option } from "commander";
+import { HUNK_COMMENTS_PATH_ENV } from "../core/reviewComments/store";
 import { HunkUserError } from "../core/run/errors";
 import {
   CURSOR_LINE_VALUES,
@@ -8,6 +9,7 @@ import {
   LAYOUT_MODE_VALUES,
   normalizeLayoutModeInput,
   type CliInput,
+  type CommentCommandInput,
   type CommonOptions,
   type CursorLine,
   type ExtensionManageCommandInput,
@@ -832,6 +834,7 @@ function renderCliHelp() {
     "  hunk pager                              general Git pager wrapper with diff detection",
     "  hunk difftool <left> <right> [path]     review Git difftool file pairs",
     "  hunk session <subcommand>               inspect or control a live Hunk session",
+    "  hunk comment <subcommand>               manage local two-way review comments",
     "  hunk markup render (<file> | -)         preview experimental STML note markup",
     "  hunk markup guide                       print the experimental STML authoring guide",
     "  hunk skill show [name]                  print a bundled Hunk skill",
@@ -1461,6 +1464,7 @@ function requireReloadableCliInput(input: ParsedCliInput): CliInput {
     input.kind === "daemon-serve" ||
     input.kind === "daemon-status" ||
     input.kind === "daemon-restart" ||
+    input.kind === "comment" ||
     input.kind === "markup-render" ||
     input.kind === "markup-guide" ||
     input.kind === "extension-manage" ||
@@ -2535,6 +2539,124 @@ function renderDaemonControlHelp(command: "daemon-status" | "daemon-restart") {
   );
 }
 
+/** Valid lifecycle statuses accepted by `hunk comment list --status`. */
+const COMMENT_STATUS_VALUES = ["open", "resolved", "disputed", "outdated"] as const;
+
+/** Help text for the local, daemon-free review-comment commands. */
+function renderCommentHelp() {
+  return (
+    [
+      "Usage: hunk comment <subcommand> [options]",
+      "",
+      "Manage the local two-way review-comment lifecycle without a live TUI session.",
+      "",
+      "Subcommands:",
+      "  hunk comment list [--all | --status <status>] [--json]",
+      "  hunk comment resolve <id> --note <text> [--json]",
+      "  hunk comment reply <id> --text <text> [--json]",
+      "  hunk comment dispute <id> --text <text> [--json]",
+      "  hunk comment reopen <id> [--json]",
+      "",
+      "Statuses: open, resolved, disputed, outdated",
+      "",
+      "Options:",
+      "  --json                 emit structured JSON",
+      "  --all                  include every status when listing",
+      "  --status <status>      list only comments in this status",
+      "  --note <text>          short note describing what was done (resolve)",
+      "  --text <text>          reply body or dispute reason",
+      "",
+      "Environment:",
+      `  ${HUNK_COMMENTS_PATH_ENV}       override the comment store file path`,
+    ].join("\n") + "\n"
+  );
+}
+
+/** Parse `hunk comment list|resolve|reply|dispute|reopen`. */
+async function parseCommentCommand(tokens: string[]): Promise<ParsedCliInput> {
+  const [subcommand, ...rest] = tokens;
+  if (!subcommand || subcommand === "--help" || subcommand === "-h") {
+    return { kind: "help", text: renderCommentHelp() };
+  }
+  const actions: CommentCommandInput["action"][] = [
+    "list",
+    "resolve",
+    "reply",
+    "dispute",
+    "reopen",
+  ];
+  if (!actions.includes(subcommand as CommentCommandInput["action"])) {
+    throw new Error("Supported comment subcommands are list, resolve, reply, dispute, and reopen.");
+  }
+  const action = subcommand as CommentCommandInput["action"];
+
+  let output: SessionCommandOutput = "text";
+  let all = false;
+  let status: CommentCommandInput["status"];
+  let id: string | undefined;
+  let note: string | undefined;
+  let text: string | undefined;
+
+  for (let index = 0; index < rest.length; index += 1) {
+    const token = rest[index]!;
+    if (token === "--help" || token === "-h") return { kind: "help", text: renderCommentHelp() };
+    if (token === "--json") {
+      output = "json";
+      continue;
+    }
+    if (token === "--all" && action === "list") {
+      all = true;
+      continue;
+    }
+    if (token === "--status" && action === "list") {
+      const value = rest[++index];
+      if (!COMMENT_STATUS_VALUES.includes(value as NonNullable<CommentCommandInput["status"]>)) {
+        throw new Error(`Invalid comment status: ${value ?? ""}`);
+      }
+      status = value as NonNullable<CommentCommandInput["status"]>;
+      continue;
+    }
+    if ((token === "--note" || token === "--text") && action !== "list") {
+      const value = rest[++index];
+      if (value === undefined || value.startsWith("--")) {
+        throw new Error(`${token} requires a value.`);
+      }
+      if (token === "--note") note = value;
+      else text = value;
+      continue;
+    }
+    if (!token.startsWith("-") && id === undefined && action !== "list") {
+      id = token;
+      continue;
+    }
+    throw new Error(`Unknown option for \`hunk comment ${subcommand}\`: ${token}`);
+  }
+
+  if (action !== "list" && !id) {
+    throw new Error(`hunk comment ${subcommand} requires a comment id.`);
+  }
+  if (action === "resolve" && !note) {
+    throw new Error("hunk comment resolve requires --note.");
+  }
+  if ((action === "reply" || action === "dispute") && !text) {
+    throw new Error(`hunk comment ${subcommand} requires --text.`);
+  }
+  if (all && status) {
+    throw new Error("Use either --all or --status, not both.");
+  }
+
+  return {
+    kind: "comment",
+    action,
+    output,
+    ...(id ? { id } : {}),
+    ...(note ? { note } : {}),
+    ...(text ? { text } : {}),
+    ...(all ? { all } : {}),
+    ...(status ? { status } : {}),
+  };
+}
+
 /** Parse the flags shared by `hunk daemon status` and `hunk daemon restart`. */
 function parseDaemonControlFlags(subcommand: "status" | "restart", tokens: string[]) {
   let output: SessionCommandOutput = "text";
@@ -2878,6 +3000,8 @@ export async function parseCli(argv: string[]): Promise<ParsedCliInput> {
       return parseStashCommand(rest, argv, extensionFlagTokens);
     case "session":
       return parseSessionCommand(rest);
+    case "comment":
+      return parseCommentCommand(rest);
     case "markup":
       return parseMarkupCommand(rest);
     case "skill":

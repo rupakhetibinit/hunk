@@ -10,6 +10,7 @@ export const BUILT_IN_CLI_COMMAND_NAMES = new Set([
   "difftool",
   "stash",
   "session",
+  "comment",
   "markup",
   "skill",
   "extension",

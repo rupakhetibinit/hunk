@@ -13,6 +13,7 @@ import type {
   ExtensionVcsShowInput,
   ExtensionVcsStashShowInput,
 } from "../../extension-api/types";
+import type { ReviewCommentStatus } from "../reviewComments/types";
 import type { InstallSource } from "../install/installSource";
 import type { ExtensionSelectionOverride } from "./extensionSelection";
 import type { WheelScrollLines } from "./wheelScrollLines";
@@ -496,6 +497,18 @@ export interface OpenCommandInput {
 /** Inputs whose view preferences use the shared configuration resolver. */
 export type ConfigurableInput = CliInput | OpenCommandInput;
 
+/** Inputs for the daemon-free, JSON-capable review-comment lifecycle commands. */
+export interface CommentCommandInput {
+  kind: "comment";
+  action: "list" | "resolve" | "reply" | "dispute" | "reopen";
+  output: SessionCommandOutput;
+  id?: string;
+  note?: string;
+  text?: string;
+  all?: boolean;
+  status?: ReviewCommentStatus;
+}
+
 export type ParsedCliInput =
   | OpenCommandInput
   | CliInput
@@ -506,6 +519,7 @@ export type ParsedCliInput =
   | DaemonServeCommandInput
   | DaemonControlCommandInput
   | SessionCommandInput
+  | CommentCommandInput
   | MarkupRenderCommandInput
   | MarkupGuideCommandInput
   | ExtensionManageCommandInput
