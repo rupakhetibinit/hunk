@@ -251,3 +251,20 @@ Deviations from the original plan, all deliberate:
 - Live refresh polls every 750 ms instead of using a push channel, so no protocol/wire change.
 - Validation note: `bun run format:check` reports a single pre-existing issue in `CLAUDE.md`
   (an 8-byte file with no trailing newline in the checkout). It was not modified by this work.
+
+## 9. Final verification results
+
+- Baseline (before changes): `bun run test` → 5821 pass, 157 skip, 2 fail (5-second timeouts).
+- Final clean run: `bun run test` → 5841 pass, 157 skip, 4 fail, 40413 assertions. Every failure is
+  a timeout at the suite's 5-second default: `status` CLI (also fails at baseline), an extension
+  sidebar test, `statusRouting`, and `daemon-restart`. The latter three were re-run in isolation:
+  `statusRouting` and `daemon-restart` pass, and the reload test passes on retry (4.50 s vs the
+  5 s limit; 4.96 s on the untouched base commit). No functional failure remains.
+- A regression found in the first after-run (comment writes failing when the XDG parent directory
+  did not exist, which also suppressed the save-note command event) was fixed and covered by a new
+  regression test; the whole keybindings suite then passed 16/16.
+- Manual end-to-end in a throwaway git repo: seeded comment → `comment list --json` → `resolve` →
+  `list --all` → `dispute` → `reopen` → anchor loss marks `outdated`, all using the default store
+  path with no environment override.
+- Not verified: real TTY rendering of the new badge and key chords (PTY/TTY suites are Unix-only;
+  this run was on Windows), and the browser surface, which deliberately does not receive status.
