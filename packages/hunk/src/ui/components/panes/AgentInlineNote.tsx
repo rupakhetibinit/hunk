@@ -16,6 +16,7 @@ import {
   type VisibleAgentNote,
 } from "../../lib/agentAnnotations";
 import { fileLabel } from "../../lib/files";
+import { storedReviewNoteMetadata } from "../../lib/reviewNoteMapping";
 import { wrapText } from "../../lib/text";
 
 import { sanitizeTerminalLine } from "../../../lib/terminalText";
@@ -261,8 +262,11 @@ export function AgentInlineNote({
 
   const rangeLabel = annotationRangeLabel(annotation, file);
   const locationTitle = `${inlineNoteTitle(annotation, noteIndex, noteCount)} - ${rangeLabel}`;
-  const titleText =
+  const baseTitleText =
     !draft && thread ? `${threadedInlineNoteTitle(annotation)} · ${rangeLabel}` : locationTitle;
+  const commentStatus = draft ? undefined : storedReviewNoteMetadata(annotation)?.commentStatus;
+  const statusBadge = commentStatus && commentStatus !== "open" ? ` [${commentStatus}]` : "";
+  const titleText = `${baseTitleText}${statusBadge}`;
   const { boxWidth, boxLeft, contentWidth } = agentNoteBoxLayout({
     anchorSide,
     layout,

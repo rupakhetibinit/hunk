@@ -4,6 +4,7 @@ import { Command, Option } from "commander";
 import { HUNK_COMMENTS_PATH_ENV } from "../core/reviewComments/store";
 import { HunkUserError } from "../core/run/errors";
 import {
+  COMMENT_STATUS_VALUES,
   CURSOR_LINE_VALUES,
   isLayoutModeInput,
   LAYOUT_MODE_VALUES,
@@ -2538,9 +2539,6 @@ function renderDaemonControlHelp(command: "daemon-status" | "daemon-restart") {
     ].join("\n") + "\n"
   );
 }
-
-/** Valid lifecycle statuses accepted by `hunk comment list --status`. */
-const COMMENT_STATUS_VALUES = ["open", "resolved", "disputed", "outdated"] as const;
 
 /** Help text for the local, daemon-free review-comment commands. */
 function renderCommentHelp() {

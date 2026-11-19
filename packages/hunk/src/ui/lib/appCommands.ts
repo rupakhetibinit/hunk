@@ -153,6 +153,8 @@ export interface BuildAppCommandsOptions {
   saveDraftNote: () => void;
   startUserNote: () => void;
   toggleAgentNotes: () => void;
+  toggleCommentResolved?: () => void;
+  toggleResolvedComments?: () => void;
   toggleCopyDecorations: () => void;
   toggleFocusArea: () => void;
   toggleGapForSelectedHunk: () => void;
@@ -290,6 +292,14 @@ function builtinCommandHandlers(
     },
     "hunk.view.openThemeSelector": { run: () => options.openThemeSelector() },
     "hunk.view.toggleAgentNotes": { run: () => options.toggleAgentNotes() },
+    "hunk.view.toggleResolvedComments": {
+      isEnabled: () => options.toggleResolvedComments !== undefined,
+      run: () => options.toggleResolvedComments?.(),
+    },
+    "hunk.review.toggleCommentResolved": {
+      isEnabled: () => options.toggleCommentResolved !== undefined,
+      run: () => options.toggleCommentResolved?.(),
+    },
     "hunk.view.toggleLineNumbers": { run: () => options.toggleLineNumbers() },
     "hunk.view.toggleLineWrap": { run: () => options.toggleLineWrap() },
     "hunk.view.toggleMenuBar": { run: () => options.toggleMenuBar() },

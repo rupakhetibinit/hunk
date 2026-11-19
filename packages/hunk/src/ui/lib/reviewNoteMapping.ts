@@ -11,6 +11,7 @@
  * shapes, which no other surface renders.
  */
 import type { LiveComment } from "../../core/liveComments";
+import type { ReviewCommentStatus } from "../../core/reviewComments/types";
 import { reviewLineAnchor } from "../../core/review/anchors";
 import type { ReviewAnnotationTarget } from "../../core/review/annotations";
 import {
@@ -37,6 +38,8 @@ export interface StoredReviewNoteRenderMetadata {
   hasNextSibling?: boolean;
   ancestorHasNextSibling?: readonly boolean[];
   semanticallyStored: true;
+  /** Lifecycle status from the local two-way comment store, when the note is tracked. */
+  commentStatus?: ReviewCommentStatus;
 }
 
 /** Read terminal-only semantic note metadata without granting it to static sidecars. */
@@ -126,6 +129,7 @@ export function storedNoteToLiveComment(
   threadDepth = 0,
   hasReplies = false,
   threadGuide?: Pick<StoredReviewNoteRenderMetadata, "ancestorHasNextSibling" | "hasNextSibling">,
+  commentStatus?: ReviewCommentStatus,
 ): LiveComment & OptionalStoredReviewNoteRenderMetadata {
   const anchorLine = reviewNoteAnchorLine(note);
   return {
@@ -136,6 +140,7 @@ export function storedNoteToLiveComment(
     ...(hasReplies ? { hasReplies: true } : {}),
     ...threadGuide,
     semanticallyStored: true,
+    ...(commentStatus ? { commentStatus } : {}),
     source: "mcp",
     author: note.author,
     createdAt: note.createdAt ?? "1970-01-01T00:00:00.000Z",
@@ -155,6 +160,7 @@ export function storedNoteToUserNote(
   threadDepth = 0,
   hasReplies = false,
   threadGuide?: Pick<StoredReviewNoteRenderMetadata, "ancestorHasNextSibling" | "hasNextSibling">,
+  commentStatus?: ReviewCommentStatus,
 ): UserReviewNote {
   const anchorLine = reviewNoteAnchorLine(note);
   return {
@@ -165,6 +171,7 @@ export function storedNoteToUserNote(
     ...(hasReplies ? { hasReplies: true } : {}),
     ...threadGuide,
     semanticallyStored: true,
+    ...(commentStatus ? { commentStatus } : {}),
     source: "user",
     filePath,
     hunkIndex: reviewNoteOwnerHunkIndex(note),

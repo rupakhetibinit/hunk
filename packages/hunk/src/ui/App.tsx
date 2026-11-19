@@ -34,6 +34,16 @@ import {
   selectActiveReplyableReviewNoteId,
   selectActiveStoredReviewNote,
 } from "../core/review/selectors";
+import {
+  createReviewComment,
+  findCommentByNoteId,
+  readAnchorText,
+  readCommentDocument,
+  reopenReviewComment,
+  replyToReviewComment,
+  resolveReviewComment,
+} from "../core/reviewComments/store";
+import type { UserReviewNote } from "./lib/reviewNoteMapping";
 import type { CliInput, CursorLine, LayoutMode } from "../core/run/commandInputs";
 import { sanitizeTerminalLine } from "../lib/terminalText";
 import { resolveExtensionKeyboardModes, resolveExtensionSessionOptions } from "../extensions/apply";
@@ -95,6 +105,7 @@ import {
 import { useTimedNotice } from "./hooks/useTimedNotice";
 import { useUserNoteComposer } from "./hooks/useUserNoteComposer";
 import { useTerminalReview, type AgentNoteGeometrySnapshot } from "./hooks/useTerminalReview";
+import { useReviewComments } from "./hooks/useReviewComments";
 import { useViewPreferenceQuitController } from "./hooks/useViewPreferenceQuitController";
 import type { WatchedInputRuntime } from "./hooks/useWatchedInput";
 import { agentNoteMarkupWidth } from "./lib/agentNoteGeometry";
@@ -264,9 +275,47 @@ export function App({
     files: reviewFiles,
     getGeneration: getReviewGeneration,
   });
+  const reviewComments = useReviewComments({ cwd: process.cwd() });
+  const [showResolvedComments, setShowResolvedComments] = useState(false);
+
+  const handleUserNoteSaved = useCallback(
+    (note: UserReviewNote) => {
+      const context = { cwd: process.cwd() };
+      const document = readCommentDocument(context);
+      const parent = note.parentId ? findCommentByNoteId(document, note.parentId) : undefined;
+      if (parent) {
+        replyToReviewComment(parent.id, note.summary, context, {
+          authorRole: "user",
+          author: note.author ?? "user",
+          noteId: note.id,
+        });
+      } else {
+        createReviewComment(
+          {
+            noteId: note.id,
+            file: note.filePath,
+            side: note.side,
+            line: note.line,
+            hunkIndex: note.hunkIndex,
+            anchorText: readAnchorText(note.filePath, note.side, note.line, context),
+            text: note.summary,
+            author: note.author ?? "user",
+            authorRole: "user",
+          },
+          context,
+        );
+      }
+      reviewComments.refresh();
+    },
+    [reviewComments.refresh],
+  );
+
   const review = useTerminalReview({
     files: reviewFiles,
     initialShowAgentNotes: bootstrap.initialShowAgentNotes ?? false,
+    commentStatusByNoteId: reviewComments.statusByNoteId,
+    showResolvedComments,
+    onUserNoteSaved: handleUserNoteSaved,
     lineCursors,
     reviewVerticalStops,
     noteGeometry: noteGeometryRef,
@@ -1139,6 +1188,26 @@ export function App({
     review.setShowAgentNotes(nextShowAgentNotes);
   };
 
+  /** Collapse or reveal comments the agent or reviewer already resolved. */
+  const toggleResolvedComments = useCallback(() => {
+    setShowResolvedComments((visible) => !visible);
+  }, []);
+
+  /** Resolve the active tracked note, or reopen it when it is already resolved. */
+  const toggleCommentResolved = useCallback(() => {
+    const activeNoteId = selectActiveStoredReviewNote(review.store.getSnapshot())?.note.id;
+    if (!activeNoteId) return;
+    const context = { cwd: process.cwd() };
+    const comment = findCommentByNoteId(readCommentDocument(context), activeNoteId);
+    if (!comment) return;
+    if (comment.status === "resolved") {
+      reopenReviewComment(comment.id, context);
+    } else {
+      resolveReviewComment(comment.id, "Resolved by reviewer", context);
+    }
+    reviewComments.refresh();
+  }, [review.store, reviewComments.refresh]);
+
   /** Toggle line-number gutters without changing the diff content itself. */
   const toggleLineNumbers = () => {
     const nextShowLineNumbers = !currentViewPreferencesRef.current.showLineNumbers;
@@ -1508,6 +1577,8 @@ export function App({
         },
         saveDraftNote: () => saveDraftNote(renderer.currentFocusedEditor?.plainText),
         toggleAgentNotes,
+        toggleCommentResolved,
+        toggleResolvedComments,
         toggleCopyDecorations,
         toggleFocusArea,
         toggleGapForSelectedHunk: review.toggleSelectedHunkGap,

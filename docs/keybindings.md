@@ -157,6 +157,7 @@ Review and shared commands:
 | `hunk.review.startVisualSelection`             | Start visual line selection                    | `v`                          |
 | `hunk.review.stepDown`                         | Move down one line or note                     | `down`, `j`                  |
 | `hunk.review.stepUp`                           | Move up one line or note                       | `up`, `k`                    |
+| `hunk.review.toggleCommentResolved`            | Resolve or reopen the active comment           | `X`                          |
 | `hunk.review.toggleHunkGap`                    | Expand or collapse the selected context        | `z`                          |
 | `hunk.search.find`                             | Search diff content                            | `/`                          |
 | `hunk.search.next`                             | Next search match                              | `n`                          |
@@ -176,6 +177,7 @@ Review and shared commands:
 | `hunk.view.toggleLineNumbers`                  | Toggle line numbers                            | `l`                          |
 | `hunk.view.toggleLineWrap`                     | Toggle line wrapping                           | `w`                          |
 | `hunk.view.toggleMenuBar`                      | Toggle menu bar                                | `M`                          |
+| `hunk.view.toggleResolvedComments`             | Toggle resolved comments                       | `S`                          |
 
 The files-pane command follows the named `hunk:files` role. If an extension
 replaces that role, the command and **View → Files pane** toggle the resolved

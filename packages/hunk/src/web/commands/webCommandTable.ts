@@ -106,6 +106,12 @@ export const WEB_COMMAND_SUPPORT = {
   "hunk.app.refresh": IMPLEMENTED,
   "hunk.view.openThemeSelector": IMPLEMENTED,
   "hunk.view.toggleAgentNotes": IMPLEMENTED,
+  "hunk.view.toggleResolvedComments": terminalOnly(
+    "Local comment lifecycle state is terminal-only; the page does not mirror it.",
+  ),
+  "hunk.review.toggleCommentResolved": terminalOnly(
+    "Resolving a local comment writes the terminal's per-repository comment file.",
+  ),
   "hunk.view.toggleLineNumbers": IMPLEMENTED,
   "hunk.view.toggleLineWrap": IMPLEMENTED,
   "hunk.view.toggleMenuBar": terminalOnly("The page's toolbar is always shown."),

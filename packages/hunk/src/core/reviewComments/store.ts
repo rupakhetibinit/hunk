@@ -402,6 +402,26 @@ export function refreshCommentAnchors(context: ReviewCommentStoreContext = {}) {
   return refreshed;
 }
 
+/** Find the comment whose root or reply carries a terminal note id. */
+export function findCommentByNoteId(document: ReviewCommentDocument, noteId: string) {
+  return document.comments.find(
+    (comment) =>
+      comment.noteId === noteId || comment.replies.some((reply) => reply.noteId === noteId),
+  );
+}
+
+/** Capture the working-tree source line a new note is anchored to, when it exists. */
+export function readAnchorText(
+  file: string,
+  side: "old" | "new",
+  line: number,
+  context: ReviewCommentStoreContext = {},
+) {
+  if (side === "old") return undefined;
+  const content = (context.readRepoFile ?? defaultReadRepoFile(context))(file);
+  return content?.split(/\r?\n/)[line - 1];
+}
+
 /** Map every tracked note id (roots and replies) to its root comment's status. */
 export function buildCommentStatusByNoteId(document: ReviewCommentDocument) {
   const status = new Map<string, ReviewCommentStatus>();

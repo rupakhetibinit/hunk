@@ -23,6 +23,8 @@ import {
   useState,
 } from "react";
 import type { UserNoteLineTarget } from "../../core/liveComments";
+import type { ReviewCommentStatus } from "../../core/reviewComments/types";
+import { isTrackedCommentVisible } from "../lib/commentVisibility";
 import type { ReviewSelectionChangedOutcome } from "../../core/review/intents";
 import { projectReviewDocument } from "../../core/review/document";
 import { reviewHunkIndexForLine } from "../../core/review/geometry";
@@ -297,6 +299,9 @@ export interface AgentNoteGeometrySnapshot {
 export function useTerminalReview({
   files,
   initialShowAgentNotes = false,
+  commentStatusByNoteId,
+  showResolvedComments = false,
+  onUserNoteSaved,
   lineCursors = EMPTY_LINE_CURSORS,
   reviewVerticalStops = EMPTY_REVIEW_VERTICAL_STOPS,
   noteGeometry,
@@ -307,6 +312,12 @@ export function useTerminalReview({
   files: DiffFile[];
   /** Note-layer visibility the launch configuration resolved for this review. */
   initialShowAgentNotes?: boolean;
+  /** Lifecycle status of tracked notes, refreshed from the local comment store. */
+  commentStatusByNoteId?: ReadonlyMap<string, ReviewCommentStatus>;
+  /** Whether resolved comments stay in the review stream or are collapsed away. */
+  showResolvedComments?: boolean;
+  /** Persist a reviewer note or reply into the local two-way comment store. */
+  onUserNoteSaved?: (note: UserReviewNote) => void;
   /**
    * Navigable lines in rendered order, published by the pane that measures the review stream.
    * Headless callers get none, which leaves `j` and `k` scrolling the viewport.
@@ -422,17 +433,36 @@ export function useTerminalReview({
     () => selectThreadedStoredReviewNotes(state),
     [state.liveNotes, state.userNotes],
   );
+  const statusFilteredNotes = useMemo(
+    () =>
+      threadedStoredNotes.filter((item) => {
+        const status = commentStatusByNoteId?.get(item.entry.note.id);
+        return isTrackedCommentVisible(status, showResolvedComments);
+      }),
+    [threadedStoredNotes, commentStatusByNoteId, showResolvedComments],
+  );
   const visibleThreadById = useMemo(
     () =>
       new Map(
-        selectVisibleThreadedStoredReviewNotes(state).map((item) => [item.entry.note.id, item]),
+        selectVisibleThreadedStoredReviewNotes(state)
+          .filter((item) => {
+            const status = commentStatusByNoteId?.get(item.entry.note.id);
+            return isTrackedCommentVisible(status, showResolvedComments);
+          })
+          .map((item) => [item.entry.note.id, item]),
       ),
-    [state.liveNotes, state.showAgentNotes, state.userNotes],
+    [
+      state.liveNotes,
+      state.showAgentNotes,
+      state.userNotes,
+      commentStatusByNoteId,
+      showResolvedComments,
+    ],
   );
   const storedNotesByFileId = useMemo(
     () =>
       groupThreadedStoredNotesByFileId(
-        threadedStoredNotes,
+        statusFilteredNotes,
         fileByKey,
         (note, filePath, depth, hasReplies) => {
           const visibleThread = visibleThreadById.get(note.id);
@@ -441,12 +471,27 @@ export function useTerminalReview({
             hasNextSibling: visibleThread?.hasNextVisibleSibling ?? false,
             ancestorHasNextSibling: visibleThread?.visibleAncestorHasNextSibling ?? [],
           };
+          const commentStatus = commentStatusByNoteId?.get(note.id);
           return note.source === "user"
-            ? storedNoteToUserNote(note, filePath, renderDepth, hasReplies, threadGuide)
-            : storedNoteToLiveComment(note, filePath, renderDepth, hasReplies, threadGuide);
+            ? storedNoteToUserNote(
+                note,
+                filePath,
+                renderDepth,
+                hasReplies,
+                threadGuide,
+                commentStatus,
+              )
+            : storedNoteToLiveComment(
+                note,
+                filePath,
+                renderDepth,
+                hasReplies,
+                threadGuide,
+                commentStatus,
+              );
         },
       ),
-    [fileByKey, threadedStoredNotes, visibleThreadById],
+    [fileByKey, statusFilteredNotes, visibleThreadById, commentStatusByNoteId],
   );
   const draftNote = useMemo(() => {
     const draft = state.draftNote;
@@ -1171,8 +1216,11 @@ export function useTerminalReview({
       // viewport settlement can re-anchor the source-line cursor that opened the composer.
       applyLineCursor(null);
     }
-    return saved ? storedNoteToUserNote(saved.note, saved.file.path) : null;
-  }, [applyLineCursor, host]);
+    if (!saved) return null;
+    const note = storedNoteToUserNote(saved.note, saved.file.path);
+    onUserNoteSaved?.(note);
+    return note;
+  }, [applyLineCursor, host, onUserNoteSaved]);
 
   /** Remove one in-memory user note by id. */
   const removeUserNote = useCallback((noteId: string) => host.removeUserNote(noteId), [host]);

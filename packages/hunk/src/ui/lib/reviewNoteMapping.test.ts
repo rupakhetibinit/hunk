@@ -172,4 +172,13 @@ describe("groupStoredNotesByFileId", () => {
       groupStoredNotesByFileId([missingFile, orphaned], fileByKey, storedNoteToLiveComment),
     ).toEqual({});
   });
+
+  test("carries the local comment status onto terminal note metadata", () => {
+    const stored = liveCommentToStoredNote(testLiveComment(), "alpha", testHunks);
+    const live = storedNoteToLiveComment(stored.note, "alpha.ts", 0, false, undefined, "disputed");
+    const user = storedNoteToUserNote(stored.note, "alpha.ts", 0, false, undefined, "resolved");
+
+    expect(live).toMatchObject({ commentStatus: "disputed", reviewNoteId: stored.note.id });
+    expect(user).toMatchObject({ commentStatus: "resolved" });
+  });
 });
