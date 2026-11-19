@@ -225,3 +225,29 @@ untouched.
   that limitation honestly. Unit tests cover status projection, filtering, and store/CLI behavior.
 - End-to-end: throwaway git repo, open TUI, leave a note, use `hunk comment list --json`, resolve,
   confirm the TUI hides it; dispute/reopen and confirm the badge and flag.
+
+## 8. Implemented steps and deviations
+
+Committed steps on branch `review-comment-lifecycle`:
+
+1. `docs:` Phase 1 notes.
+2. `feat(comments):` `core/reviewComments/` — types, atomic JSON store, lifecycle transitions,
+   content re-anchoring, and 11 unit tests.
+3. `feat(cli):` top-level `hunk comment list|resolve|reply|dispute|reopen [--json]`, wired through
+   `ParsedCliInput`/`StartupPlan`/`main.tsx`, with 8 black-box CLI tests.
+4. `feat(tui):` local comment polling hook, status carried on terminal note metadata, `[resolved]`
+   badge in the note-card title, resolved-comment filtering plus `S` toggle, `X` resolve/reopen
+   keybinding, and creation of an open comment whenever the reviewer saves a note or reply.
+5. `docs:` updated generated skill, `.claude/commands/review-comments.md`, opt-in Stop hook example,
+   README workflow, generated docs, and a changeset.
+
+Deviations from the original plan, all deliberate:
+
+- The comment store uses an XDG **state** directory (Hunk's own convention) rather than `.git`. It
+  is still outside the working tree and cannot be committed.
+- `hunk comment add` was not added: reviewers create comments in the TUI, and the agent only needs
+  the five lifecycle commands. Unit tests seed the store directly.
+- Status is terminal-only (D1); the browser page and daemon wire are unchanged.
+- Live refresh polls every 750 ms instead of using a push channel, so no protocol/wire change.
+- Validation note: `bun run format:check` reports a single pre-existing issue in `CLAUDE.md`
+  (an 8-byte file with no trailing newline in the checkout). It was not modified by this work.
