@@ -552,6 +552,34 @@ Agents: run this only when the user asked for it or agreed to the exact message.
 | `--skip-confirm`       | send without the confirmation prompt (required without a terminal) |
 | `--json`               | print the result as JSON                                           |
 
+## `hunk comment`
+
+manage local two-way review comments
+
+### Usage
+
+```bash
+hunk comment list [--all | --status <status>] [--json]
+hunk comment resolve <id> --note <text> [--json]
+hunk comment reply <id> --text <text> [--json]
+hunk comment dispute <id> --text <text> [--json]
+hunk comment reopen <id> [--json]
+```
+
+Comments are stored in a JSON file under the user state dir, outside the working tree. These commands need no live session, no daemon, and no network.
+
+`list` shows open comments by default; use `--all` or `--status` to include resolved, disputed, and outdated ones.
+
+### Command-specific options
+
+| Option              | Description                                   |
+| ------------------- | --------------------------------------------- |
+| `--json`            | emit structured JSON                          |
+| `--all`             | include every status when listing             |
+| `--status <status>` | list only comments in this status             |
+| `--note <text>`     | short note describing what was done (resolve) |
+| `--text <text>`     | reply body or dispute reason                  |
+
 ## `hunk daemon serve`
 
 run the local Hunk session daemon and websocket session broker

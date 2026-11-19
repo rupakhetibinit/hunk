@@ -531,6 +531,28 @@ export const CLI_REFERENCE_COMMANDS = {
       { flag: "--json", description: "print the result as JSON" },
     ],
   },
+  comment: {
+    path: "comment",
+    summary: "manage local two-way review comments",
+    synopsis: [
+      "hunk comment list [--all | --status <status>] [--json]",
+      "hunk comment resolve <id> --note <text> [--json]",
+      "hunk comment reply <id> --text <text> [--json]",
+      "hunk comment dispute <id> --text <text> [--json]",
+      "hunk comment reopen <id> [--json]",
+    ],
+    details: [
+      "Comments are stored in a JSON file under the user state dir, outside the working tree. These commands need no live session, no daemon, and no network.",
+      "`list` shows open comments by default; use `--all` or `--status` to include resolved, disputed, and outdated ones.",
+    ],
+    options: [
+      { flag: "--json", description: "emit structured JSON" },
+      { flag: "--all", description: "include every status when listing" },
+      { flag: "--status <status>", description: "list only comments in this status" },
+      { flag: "--note <text>", description: "short note describing what was done (resolve)" },
+      { flag: "--text <text>", description: "reply body or dispute reason" },
+    ],
+  },
   "daemon-serve": {
     path: "daemon serve",
     summary: "run the local Hunk session daemon and websocket session broker",
